@@ -31,7 +31,7 @@ template TreasuryBill
       do
         restriction <- fetch restrictionCid
         assertMsg "Transfer restricted: investor not accredited"
-          (restriction.canTransferTo newOwner)
+          (restriction.CanTransferTo newOwner)
         create this with owner = newOwner
 
     --- Split this T-Bill into two UTXOs with the specified split amount.
