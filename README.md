@@ -170,6 +170,10 @@ cd backend && pnpm test && cd ..
 
 Apache-2.0
 
+## Presentation Deck
+
+A slide deck for this project is available at [`presentation/index.html`](presentation/index.html) — open in any browser (keyboard navigation: arrow keys).
+
 ---
 
 Built with Daml on the Canton Network.
