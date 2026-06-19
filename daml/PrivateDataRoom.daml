@@ -1,0 +1,42 @@
+daml 3.4
+
+module CantonTreasury.PrivateDataRoom where
+
+--- A confidential document shared by the issuer with qualified investors.
+--- Only the issuer and explicitly authorized investors can see the document
+--- and its contents, leveraging Canton's privacy-by-design model.
+template DataRoomDocument
+  with
+    issuer : Party
+    documentId : Text
+    title : Text
+    description : Text
+    ipfsHash : Text
+    isConfidential : Bool
+    createdAt : Date
+  where
+    signatory issuer
+    observer issuer
+
+    --- Grant document access to a specific investor.
+    choice GrantAccess : ContractId DocumentAccess
+      with
+        investor : Party
+      controller issuer
+      do
+        create DocumentAccess with
+          issuer = issuer
+          investor = investor
+          documentId = documentId
+          grantedAt = date 2026 06 19
+
+--- Tracks which investors have been granted access to which documents.
+template DocumentAccess
+  with
+    issuer : Party
+    investor : Party
+    documentId : Text
+    grantedAt : Date
+  where
+    signatory issuer, investor
+    observer issuer, investor

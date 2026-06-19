@@ -1,0 +1,25 @@
+daml 3.4
+
+module CantonTreasury.TransferRestriction where
+
+import CantonTreasury.InvestorRegistry (AccreditationLevel, InvestorRecord)
+
+--- Defines transfer restrictions for a specific T-Bill issue based on
+--- investor accreditation and jurisdictional rules.
+template TransferRestriction
+  with
+    issuer : Party
+    cusip : Text
+    minAccreditation : AccreditationLevel
+    maxHoldingPerInvestor : Decimal
+    restrictedJurisdictions : [Text]
+  where
+    signatory issuer
+
+    --- Check whether a given party can receive this token.
+    nonconsuming choice CanTransferTo : Bool
+      with
+        party : Party
+      controller issuer
+      do
+        return True

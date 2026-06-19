@@ -1,0 +1,72 @@
+version: "3.9"
+
+services:
+  canton-localnet:
+    image: ghcr.io/digital-assets/canton-localnet:latest
+    platform: linux/amd64
+    ports:
+      - "5011:5011"   # JSON Ledger API
+      - "7000:7000"   # Admin API
+    environment:
+      - CANTON_LOG_LEVEL=INFO
+    volumes:
+      - canton-data:/data
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: canton
+      POSTGRES_PASSWORD: canton
+      POSTGRES_DB: pqs
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U canton"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pqs:
+    image: ghcr.io/digital-assets/canton-localnet:latest
+    platform: linux/amd64
+    entrypoint: ["canton", "run", "pqs"]
+    ports:
+      - "8080:8080"
+    environment:
+      - PQS_DB_URL=jdbc:postgresql://postgres:5432/pqs
+      - PQS_DB_USER=canton
+      - PQS_DB_PASSWORD=canton
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - CANTON_LEDGER_API=http://canton-localnet:5011
+    depends_on:
+      - canton-localnet
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:4000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  canton-data:
+  postgres-data:

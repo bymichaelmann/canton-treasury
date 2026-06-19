@@ -1,0 +1,160 @@
+daml 3.4
+
+module CantonTreasury.Test.TreasuryBillTest where
+
+import CantonTreasury.TreasuryBill (TreasuryBill)
+import CantonTreasury.InvestorRegistry (AccreditationLevel(..), KYCStatus(..), ComplianceOfficer, InvestorRecord)
+import CantonTreasury.TransferRestriction (TransferRestriction)
+import Daml.Script
+
+--- Test: Mint a T-Bill and verify its properties.
+runMintAndVerify : Script ()
+runMintAndVerify = script do
+  issuer <- allocateParty "Issuer"
+  owner  <- allocateParty "Owner"
+
+  tb <- submit issuer do
+    createCmd TreasuryBill with
+      issuer = issuer
+      owner = owner
+      amount = 1000000.0
+      maturityDate = date 2027 06 19
+      coupon = 0.0452
+      cusip = "912828ZJ9"
+      createdAt = date 2026 06 19
+
+  tbData <- queryContractId issuer tb
+  assertMsg "Owner should match" (tbData.owner == owner)
+  assertMsg "Amount should be 1,000,000" (tbData.amount == 1000000.0)
+  pure ()
+
+--- Test: Split a T-Bill into two UTXOs.
+runSplit : Script ()
+runSplit = script do
+  issuer <- allocateParty "Issuer"
+  owner  <- allocateParty "Owner"
+
+  tb <- submit issuer do
+    createCmd TreasuryBill with
+      issuer = issuer
+      owner = owner
+      amount = 1000000.0
+      maturityDate = date 2027 06 19
+      coupon = 0.0452
+      cusip = "912828ZJ9"
+      createdAt = date 2026 06 19
+
+  (tb1, tb2) <- submit owner do
+    exerciseCmd tb Split with splitAmount = 400000.0
+
+  tb1Data <- queryContractId owner tb1
+  tb2Data <- queryContractId owner tb2
+  assertMsg "First split should be 400,000" (tb1Data.amount == 400000.0)
+  assertMsg "Second split should be 600,000" (tb2Data.amount == 600000.0)
+  pure ()
+
+--- Test: Merge two T-Bills back into one.
+runMerge : Script ()
+runMerge = script do
+  issuer <- allocateParty "Issuer"
+  owner  <- allocateParty "Owner"
+
+  tb1 <- submit issuer do
+    createCmd TreasuryBill with
+      issuer = issuer
+      owner = owner
+      amount = 400000.0
+      maturityDate = date 2027 06 19
+      coupon = 0.0452
+      cusip = "912828ZJ9"
+      createdAt = date 2026 06 19
+
+  tb2 <- submit issuer do
+    createCmd TreasuryBill with
+      issuer = issuer
+      owner = owner
+      amount = 600000.0
+      maturityDate = date 2027 06 19
+      coupon = 0.0452
+      cusip = "912828ZJ9"
+      createdAt = date 2026 06 19
+
+  merged <- submit owner do
+    exerciseCmd tb1 Merge with otherCid = tb2
+
+  mergedData <- queryContractId owner merged
+  assertMsg "Merged amount should be 1,000,000" (mergedData.amount == 1000000.0)
+  pure ()
+
+--- Test: Full KYC registration and accreditation flow.
+runKYCWorkflow : Script ()
+runKYCWorkflow = script do
+  officer  <- allocateParty "ComplianceOfficer"
+  investor <- allocateParty "Investor"
+
+  co <- submit officer do
+    createCmd ComplianceOfficer with
+      officer = officer
+
+  record <- submit officer do
+    exerciseCmd co RegisterInvestor with
+      investor = investor
+      name = "Acme Capital LLC"
+      jurisdiction = "US"
+
+  recordData <- queryContractId officer record
+  assertMsg "Initial status should be Pending"
+    (recordData.kycStatus == Pending)
+
+  approved <- submit officer do
+    exerciseCmd record UpdateKYCStatus with newStatus = Approved
+
+  approvedData <- queryContractId officer approved
+  assertMsg "Status should be Approved"
+    (approvedData.kycStatus == Approved)
+  pure ()
+
+--- Test: Transfer a T-Bill with compliance check.
+runCompliantTransfer : Script ()
+runCompliantTransfer = script do
+  issuer   <- allocateParty "Issuer"
+  owner    <- allocateParty "Owner"
+  investor <- allocateParty "Investor"
+
+  tb <- submit issuer do
+    createCmd TreasuryBill with
+      issuer = issuer
+      owner = owner
+      amount = 500000.0
+      maturityDate = date 2027 06 19
+      coupon = 0.0452
+      cusip = "912828ZJ9"
+      createdAt = date 2026 06 19
+
+  restriction <- submit issuer do
+    createCmd TransferRestriction with
+      issuer = issuer
+      cusip = "912828ZJ9"
+      minAccreditation = AccreditedInvestor
+      maxHoldingPerInvestor = 10000000.0
+      restrictedJurisdictions = []
+
+  transferred <- submit owner do
+    exerciseCmd tb Transfer with
+      newOwner = investor
+      restrictionCid = restriction
+
+  transferredData <- queryContractId investor transferred
+  assertMsg "New owner should be the investor"
+    (transferredData.owner == investor)
+  pure ()
+
+--- Run all tests.
+runAll : Script ()
+runAll = script do
+  runMintAndVerify
+  runSplit
+  runMerge
+  runKYCWorkflow
+  runCompliantTransfer
+  pure ()

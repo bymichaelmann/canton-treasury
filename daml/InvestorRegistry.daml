@@ -1,0 +1,73 @@
+daml 3.4
+
+module CantonTreasury.InvestorRegistry where
+
+--- Accreditation levels for institutional investors under SEC rules.
+data AccreditationLevel
+  = AccreditedInvestor            -- Standard accredited investor
+  | QualifiedInstitutionalBuyer   -- QIB (higher tier, fewer restrictions)
+  | RetailInvestor                -- Non-accredited (limited participation)
+  deriving (Eq, Show)
+
+--- KYC/AML status lifecycle.
+data KYCStatus
+  = Pending
+  | Approved
+  | Rejected
+  | Expired
+  deriving (Eq, Show)
+
+--- A compliance officer who manages the investor registry.
+template ComplianceOfficer
+  with
+    officer : Party
+  where
+    signatory officer
+
+    --- Register a new investor and create their initial record.
+    nonconsuming choice RegisterInvestor : ContractId InvestorRecord
+      with
+        investor : Party
+        name : Text
+        jurisdiction : Text
+      controller officer
+      do
+        create InvestorRecord with
+          officer = officer
+          investor = investor
+          name = name
+          jurisdiction = jurisdiction
+          accreditation = AccreditedInvestor
+          kycStatus = Pending
+          registeredAt = date 2026 06 19
+
+--- Individual investor record visible only to the compliance officer
+--- and the investor (Canton's privacy model).
+template InvestorRecord
+  with
+    officer : Party
+    investor : Party
+    name : Text
+    jurisdiction : Text
+    accreditation : AccreditationLevel
+    kycStatus : KYCStatus
+    registeredAt : Date
+  where
+    signatory officer, investor
+    observer officer, investor
+
+    --- Update the KYC status (officer only).
+    choice UpdateKYCStatus : ContractId InvestorRecord
+      with
+        newStatus : KYCStatus
+      controller officer
+      do
+        create this with kycStatus = newStatus
+
+    --- Upgrade the accreditation level (officer only).
+    choice UpgradeAccreditation : ContractId InvestorRecord
+      with
+        newLevel : AccreditationLevel
+      controller officer
+      do
+        create this with accreditation = newLevel

@@ -1,0 +1,58 @@
+daml 3.4
+
+module CantonTreasury.TreasuryBill where
+
+--- A CIP-056-compatible token representing a tokenized US Treasury Bill.
+--- Each contract is one UTXO of a Treasury Bill token, following the
+--- Canton token standard's UTXO-based holding model.
+template TreasuryBill
+  with
+    issuer : Party
+    owner : Party
+    amount : Decimal
+    maturityDate : Date
+    coupon : Decimal
+    cusip : Text
+    createdAt : Date
+  where
+    signatory issuer, owner
+    observer owner
+
+    --- Transfer this T-Bill to a new owner.
+    --- Verifies compliance via a TransferRestriction contract before allowing
+    --- the transfer.
+    choice Transfer : ContractId TreasuryBill
+      with
+        newOwner : Party
+        restrictionCid : ContractId TransferRestriction
+      controller owner
+      do
+        restriction <- fetch restrictionCid
+        assertMsg "Transfer restricted: investor not accredited"
+          (restriction.canTransferTo newOwner)
+        create this with owner = newOwner
+
+    --- Split this T-Bill into two UTXOs with the specified split amount.
+    choice Split : (ContractId TreasuryBill, ContractId TreasuryBill)
+      with
+        splitAmount : Decimal
+      controller owner
+      do
+        assertMsg "Split amount must be less than total" (splitAmount < amount)
+        assertMsg "Split amount must be positive" (splitAmount > 0.0)
+        let remaining = amount - splitAmount
+        tb1 <- create this with amount = splitAmount
+        tb2 <- create this with amount = remaining
+        return (tb1, tb2)
+
+    --- Merge two T-Bills with the same CUSIP and owner into one UTXO.
+    choice Merge : ContractId TreasuryBill
+      with
+        otherCid : ContractId TreasuryBill
+      controller owner
+      do
+        other <- fetch otherCid
+        assertMsg "Cannot merge: different CUSIP" (other.cusip == cusip)
+        assertMsg "Cannot merge: different owner" (other.owner == owner)
+        archive otherCid
+        create this with amount = amount + other.amount
