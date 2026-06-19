@@ -53,10 +53,15 @@ complianceRouter.post("/approve", async (req: Request, res: Response) => {
 
 /**
  * GET /api/compliance/status/:party
- * Placeholder endpoint for checking KYC status.
+ * Returns a structured mock of the investor's KYC status.
  */
-complianceRouter.get("/status/:party", (_req: Request, res: Response) => {
+complianceRouter.get("/status/:party", (req: Request, res: Response) => {
+  const { party } = req.params;
   res.json({
-    message: "Query the Canton ledger directly via the JSON API for contract data.",
+    party,
+    kycStatus: "Approved",
+    accreditation: "AccreditedInvestor",
+    jurisdiction: "US",
+    registeredAt: "2026-06-19",
   });
 });

@@ -78,3 +78,34 @@ treasuryRouter.post("/split", async (req: Request, res: Response) => {
     res.status(500).json({ error: (err as Error).message });
   }
 });
+
+/**
+ * GET /api/treasury/bills
+ * Returns a mock array of issued T-Bills for the frontend Portfolio page.
+ */
+treasuryRouter.get("/bills", (_req: Request, res: Response) => {
+  res.json([
+    {
+      id: "bill-001",
+      cusip: "912828ZJ9",
+      amount: 10000000,
+      maturityDate: "2027-06-19",
+      coupon: 4.52,
+      issuer: "US-Treasury",
+      owner: "Investor-A",
+      contractId: "cid-001",
+      createdAt: "2026-06-19",
+    },
+    {
+      id: "bill-002",
+      cusip: "912828ZK5",
+      amount: 5000000,
+      maturityDate: "2027-12-15",
+      coupon: 4.35,
+      issuer: "US-Treasury",
+      owner: "Investor-A",
+      contractId: "cid-002",
+      createdAt: "2026-06-19",
+    },
+  ]);
+});

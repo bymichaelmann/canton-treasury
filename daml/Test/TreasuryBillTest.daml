@@ -101,6 +101,7 @@ runKYCWorkflow = script do
       investor = investor
       name = "Acme Capital LLC"
       jurisdiction = "US"
+      issuer = officer
 
   recordData <- queryContractId officer record
   assertMsg "Initial status should be Pending"
@@ -120,6 +121,7 @@ runCompliantTransfer = script do
   issuer   <- allocateParty "Issuer"
   owner    <- allocateParty "Owner"
   investor <- allocateParty "Investor"
+  officer  <- allocateParty "ComplianceOfficer"
 
   tb <- submit issuer do
     createCmd TreasuryBill with
@@ -130,6 +132,21 @@ runCompliantTransfer = script do
       coupon = 0.0452
       cusip = "912828ZJ9"
       createdAt = date 2026 06 19
+
+  co <- submit officer do
+    createCmd ComplianceOfficer with
+      officer = officer
+
+  record <- submit officer do
+    exerciseCmd co RegisterInvestor with
+      investor = investor
+      name = "Global Capital LLC"
+      jurisdiction = "US"
+      issuer = issuer
+
+  void <-
+    submit officer do
+      exerciseCmd record UpdateKYCStatus with newStatus = Approved
 
   restriction <- submit issuer do
     createCmd TransferRestriction with

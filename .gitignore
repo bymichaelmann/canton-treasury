@@ -30,3 +30,13 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+out/
+target/
+artifacts/
+cache/
+coverage/
+.cache/
+__pycache__/
+
+# Stale artifacts
+canton-treasury/

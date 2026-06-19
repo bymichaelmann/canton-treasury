@@ -3,11 +3,12 @@ daml 3.4
 module CantonTreasury.InvestorRegistry where
 
 --- Accreditation levels for institutional investors under SEC rules.
+--- Ordered from least to most accredited for comparison.
 data AccreditationLevel
-  = AccreditedInvestor            -- Standard accredited investor
+  = RetailInvestor                -- Non-accredited (limited participation)
+  | AccreditedInvestor            -- Standard accredited investor
   | QualifiedInstitutionalBuyer   -- QIB (higher tier, fewer restrictions)
-  | RetailInvestor                -- Non-accredited (limited participation)
-  deriving (Eq, Show)
+  deriving (Eq, Show, Ord)
 
 --- KYC/AML status lifecycle.
 data KYCStatus
@@ -25,11 +26,14 @@ template ComplianceOfficer
     signatory officer
 
     --- Register a new investor and create their initial record.
+    --- An issuer may be specified so they can observe the record for
+    --- compliance checks during T-Bill transfers.
     nonconsuming choice RegisterInvestor : ContractId InvestorRecord
       with
         investor : Party
         name : Text
         jurisdiction : Text
+        issuer : Party
       controller officer
       do
         create InvestorRecord with
@@ -40,9 +44,10 @@ template ComplianceOfficer
           accreditation = AccreditedInvestor
           kycStatus = Pending
           registeredAt = date 2026 06 19
+          issuer = issuer
 
---- Individual investor record visible only to the compliance officer
---- and the investor (Canton's privacy model).
+--- Individual investor record visible only to the compliance officer,
+--- the investor, and the issuer (for transfer compliance checks).
 template InvestorRecord
   with
     officer : Party
@@ -52,9 +57,12 @@ template InvestorRecord
     accreditation : AccreditationLevel
     kycStatus : KYCStatus
     registeredAt : Date
+    issuer : Party
   where
     signatory officer, investor
-    observer officer, investor
+    observer officer, investor, issuer
+    key investor
+    maintainer key
 
     --- Update the KYC status (officer only).
     choice UpdateKYCStatus : ContractId InvestorRecord

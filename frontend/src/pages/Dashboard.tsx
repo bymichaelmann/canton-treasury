@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface TreasuryBill {
   cusip: string;
@@ -16,25 +16,30 @@ export function Dashboard() {
     coupon: "",
     cusip: "",
   });
-  const [bills] = useState<TreasuryBill[]>([
-    {
-      cusip: "912828ZJ9",
-      amount: 10000000,
-      maturityDate: "2027-06-19",
-      coupon: 4.52,
-    },
-    {
-      cusip: "912828ZK5",
-      amount: 5000000,
-      maturityDate: "2027-12-15",
-      coupon: 4.35,
-    },
-  ]);
+  const [bills, setBills] = useState<TreasuryBill[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/treasury/bills")
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data: TreasuryBill[]) => {
+        setBills(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
 
   const handleMint = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await fetch("/api/treasury/mint", {
+      const res = await fetch("/api/treasury/mint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -46,6 +51,13 @@ export function Dashboard() {
           cusip: mintForm.cusip,
         }),
       });
+      if (res.ok) {
+        // Refresh the bills list after minting
+        const updated = await fetch("/api/treasury/bills").then((r) =>
+          r.json()
+        );
+        setBills(updated);
+      }
     } catch (err) {
       console.error("Mint failed:", err);
     }
@@ -165,31 +177,43 @@ export function Dashboard() {
         {/* Issued Bills */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-xl font-semibold mb-4">Issued T-Bills</h2>
-          <div className="space-y-3">
-            {bills.map((bill) => (
-              <div
-                key={bill.cusip}
-                className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-mono text-sm text-gray-500">
-                      {bill.cusip}
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      ${bill.amount.toLocaleString()}
+          {loading && (
+            <p className="text-gray-500">Loading bills...</p>
+          )}
+          {error && (
+            <p className="text-red-500">Error: {error}</p>
+          )}
+          {!loading && !error && (
+            <div className="space-y-3">
+              {bills.length === 0 ? (
+                <p className="text-gray-500">No bills issued yet.</p>
+              ) : (
+                bills.map((bill) => (
+                  <div
+                    key={bill.cusip}
+                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-mono text-sm text-gray-500">
+                          {bill.cusip}
+                        </p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          ${bill.amount.toLocaleString()}
+                        </p>
+                      </div>
+                      <span className="bg-treasury-100 text-treasury-800 text-sm font-medium px-2.5 py-0.5 rounded">
+                        {bill.coupon}%
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Matures: {bill.maturityDate}
                     </p>
                   </div>
-                  <span className="bg-treasury-100 text-treasury-800 text-sm font-medium px-2.5 py-0.5 rounded">
-                    {bill.coupon}%
-                  </span>
-                </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  Matures: {bill.maturityDate}
-                </p>
-              </div>
-            ))}
-          </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

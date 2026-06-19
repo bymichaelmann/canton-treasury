@@ -55,10 +55,30 @@ dataroomRouter.post("/grant", async (req: Request, res: Response) => {
 
 /**
  * GET /api/dataroom/documents/:party
- * Placeholder for listing visible documents for a party.
+ * Returns a mock array of documents visible to the party.
  */
-dataroomRouter.get("/documents/:party", (_req: Request, res: Response) => {
-  res.json({
-    message: "Query the Canton ledger directly via the JSON API for visible documents.",
-  });
+dataroomRouter.get("/documents/:party", (req: Request, res: Response) => {
+  const { party } = req.params;
+  res.json([
+    {
+      id: "doc-001",
+      documentId: "doc-001",
+      issuer: party,
+      title: "T-Bill Series A Prospectus",
+      description: "Offering memorandum for Series A Treasury Bills",
+      ipfsHash: "QmX7...3fZ",
+      isConfidential: true,
+      createdAt: "2026-06-19",
+    },
+    {
+      id: "doc-002",
+      documentId: "doc-002",
+      issuer: party,
+      title: "Q4 2026 Financial Statement",
+      description: "Audited financial report",
+      ipfsHash: "QmY8...4gA",
+      isConfidential: true,
+      createdAt: "2026-06-19",
+    },
+  ]);
 });

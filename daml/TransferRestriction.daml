@@ -2,7 +2,8 @@ daml 3.4
 
 module CantonTreasury.TransferRestriction where
 
-import CantonTreasury.InvestorRegistry (AccreditationLevel, InvestorRecord)
+import CantonTreasury.InvestorRegistry (AccreditationLevel(..), KYCStatus(..), InvestorRecord)
+import DA.List (elem)
 
 --- Defines transfer restrictions for a specific T-Bill issue based on
 --- investor accreditation and jurisdictional rules.
@@ -17,9 +18,18 @@ template TransferRestriction
     signatory issuer
 
     --- Check whether a given party can receive this token.
+    --- Verifies that:
+    ---   a) The party has an InvestorRecord on the ledger
+    ---   b) Their KYC status is Approved
+    ---   c) Their accreditation level meets or exceeds minAccreditation
+    ---   d) Their jurisdiction is not in the restricted list
     nonconsuming choice CanTransferTo : Bool
       with
         party : Party
       controller issuer
       do
-        return True
+        record <- fetchByKey @InvestorRecord party
+        let kycOk = (record.kycStatus == Approved)
+        let accOk = (record.accreditation >= minAccreditation)
+        let jurOk = not (elem record.jurisdiction restrictedJurisdictions)
+        return (kycOk && accOk && jurOk)

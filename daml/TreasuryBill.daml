@@ -2,6 +2,8 @@ daml 3.4
 
 module CantonTreasury.TreasuryBill where
 
+import CantonTreasury.TransferRestriction (TransferRestriction)
+
 --- A CIP-056-compatible token representing a tokenized US Treasury Bill.
 --- Each contract is one UTXO of a Treasury Bill token, following the
 --- Canton token standard's UTXO-based holding model.
