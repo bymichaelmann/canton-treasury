@@ -77,7 +77,7 @@ Daml Script tests cover five key workflows:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/canton-treasury.git
+git clone https://github.com/bymichaelmann/canton-treasury.git
 cd canton-treasury
 
 # Install backend dependencies
